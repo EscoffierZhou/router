@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f19">
+  <title>Escoffier 动态跳转中枢</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      background: #0b0f19;
+      color: #f0f6fc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      background-image: radial-gradient(circle at 50% 30%, rgba(88, 166, 255, 0.12) 0%, transparent 60%);
+    }
+    .card {
+      background: rgba(22, 27, 46, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      padding: 32px 24px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(12px);
+    }
+    .logo {
+      font-size: 48px;
+      margin-bottom: 12px;
+      display: inline-block;
+      animation: float 2.5s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #58a6ff, #bc8cff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    p {
+      font-size: 14px;
+      color: #8b949e;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(88, 166, 255, 0.2);
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 16px auto;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .btn {
+      display: inline-block;
+      background: #238636;
+      color: #fff;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      transition: opacity 0.2s;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+    .status-text {
+      font-size: 13px;
+      color: #d29922;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🦞</div>
+    <h1>Escoffier 永久中转站</h1>
+    <p id="desc">正在识别当前在线的控制中枢实例...</p>
+    <div class="spinner" id="loader"></div>
+    <div id="action-area" style="display: none;">
+      <a id="target-link" href="#" class="btn">立即进入中枢</a>
+      <div class="status-text" id="offline-tip"></div>
+    </div>
+  </div>
+
+  <script>
+    const TOPIC_URL = "https://ntfy.sh/escoffier_myrouter_hub/json?poll=1";
+
+    async function resolveAndRedirect() {
+      try {
+        const response = await fetch(TOPIC_URL);
+        if (!response.ok) throw new Error("无法读取同步状态");
+        const text = await response.text();
+        const lines = text.trim().split("\n").filter(l => l.trim().length > 0);
+        if (lines.length === 0) throw new Error("尚未获取到在线地址");
+
+        const latest = JSON.parse(lines[lines.length - 1]);
+        const targetUrl = latest.message || latest.click;
+
+        if (targetUrl && (targetUrl.startsWith("http://") || targetUrl.startsWith("https://"))) {
+          document.getElementById("desc").innerText = "已就绪，正在无感跳转...";
+          document.getElementById("target-link").href = targetUrl;
+          document.getElementById("action-area").style.display = "block";
+          
+          // 0.3秒平滑跳转
+          setTimeout(() => {
+            window.location.replace(targetUrl);
+          }, 300);
+        } else {
+          showOffline("暂无有效在线地址，请检查电脑端 MyRouter 是否已启动。");
+        }
+      } catch (err) {
+        showOffline("未能连接到在线中枢 (" + err.message + ")。请确保电脑端 MyRouter 处于运行状态。");
+      }
+    }
+
+    function showOffline(msg) {
+      document.getElementById("loader").style.display = "none";
+      document.getElementById("desc").innerText = "连接失败";
+      document.getElementById("action-area").style.display = "block";
+      document.getElementById("target-link").innerText = "重新尝试连接";
+      document.getElementById("target-link").onclick = (e) => {
+        e.preventDefault();
+        location.reload();
+      };
+      document.getElementById("offline-tip").innerText = msg;
+    }
+
+    resolveAndRedirect();
+  </script>
+</body>
+</html>
