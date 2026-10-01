@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0b0f19">
+  <link rel="icon" type="image/jpeg" href="icon.jpg">
+  <link rel="apple-touch-icon" href="icon.jpg">
   <title>Escoffier 动态跳转中枢</title>
   <style>
     * {
@@ -22,27 +26,26 @@
       justify-content: center;
       padding: 24px;
       text-align: center;
-      background-image: radial-gradient(circle at 50% 30%, rgba(88, 166, 255, 0.12) 0%, transparent 60%);
+      background-image: radial-gradient(circle at 50% 30%, rgba(88, 166, 255, 0.15) 0%, transparent 65%);
     }
     .card {
-      background: rgba(22, 27, 46, 0.85);
+      background: rgba(22, 27, 46, 0.88);
       border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 20px;
-      padding: 32px 24px;
-      max-width: 420px;
+      border-radius: 24px;
+      padding: 36px 24px;
+      max-width: 440px;
       width: 100%;
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
-      backdrop-filter: blur(12px);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(16px);
     }
-    .logo {
-      font-size: 48px;
-      margin-bottom: 12px;
-      display: inline-block;
-      animation: float 2.5s ease-in-out infinite;
-    }
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
+    .logo-img {
+      width: 68px;
+      height: 68px;
+      border-radius: 18px;
+      object-fit: cover;
+      margin-bottom: 16px;
+      border: 2px solid rgba(88, 166, 255, 0.4);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     }
     h1 {
       font-size: 20px;
@@ -56,7 +59,7 @@
       font-size: 14px;
       color: #8b949e;
       line-height: 1.6;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
     .spinner {
       width: 36px;
@@ -75,7 +78,7 @@
       background: #238636;
       color: #fff;
       text-decoration: none;
-      padding: 12px 24px;
+      padding: 13px 24px;
       border-radius: 12px;
       font-size: 15px;
       font-weight: 600;
@@ -88,16 +91,41 @@
     .btn:hover {
       opacity: 0.9;
     }
+    .direct-links {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      color: #8b949e;
+      text-align: left;
+    }
+    .direct-links h3 {
+      font-size: 12px;
+      color: #58a6ff;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .direct-links a {
+      color: #bc8cff;
+      text-decoration: none;
+      display: block;
+      margin: 4px 0;
+      word-break: break-all;
+    }
+    .direct-links a:hover {
+      text-decoration: underline;
+    }
     .status-text {
       font-size: 13px;
       color: #d29922;
-      margin-top: 12px;
+      margin-top: 14px;
     }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="logo">🦞</div>
+    <img src="icon.jpg" alt="Logo" class="logo-img" onerror="this.style.display='none'">
     <h1>Escoffier 永久中转站</h1>
     <p id="desc">正在识别当前在线的控制中枢实例...</p>
     <div class="spinner" id="loader"></div>
@@ -105,49 +133,79 @@
       <a id="target-link" href="#" class="btn">立即进入中枢</a>
       <div class="status-text" id="offline-tip"></div>
     </div>
+
+    <div class="direct-links">
+      <h3>🚀 备选直连通道:</h3>
+      <div>• 手机热点 / 局域网: <a href="http://192.168.43.181:8765">http://192.168.43.181:8765</a></div>
+      <div>• Tailscale 硬件直连: <a href="http://100.84.30.70:8765">http://100.84.30.70:8765</a></div>
+    </div>
   </div>
 
   <script>
-    const TOPIC_URL = "https://ntfy.sh/escoffier_myrouter_hub/json?poll=1";
+    async function getTargetUrl() {
+      // 1. 同域 endpoint.json (最快、最稳，完美支持各类手机代理)
+      try {
+        const res = await fetch('./endpoint.json?t=' + Date.now());
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.url && data.url.startsWith('http')) return data.url;
+        }
+      } catch (e) {}
+
+      // 2. GitHub Raw CDN
+      try {
+        const res = await fetch('https://raw.githubusercontent.com/EscoffierZhou/router/main/endpoint.json?t=' + Date.now());
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.url && data.url.startsWith('http')) return data.url;
+        }
+      } catch (e) {}
+
+      // 3. ntfy.sh 实时广播通道
+      try {
+        const res = await fetch('https://ntfy.sh/escoffier_myrouter_hub/json?poll=1');
+        if (res.ok) {
+          const text = await res.text();
+          const lines = text.trim().split('\n').filter(l => l.trim().length > 0);
+          if (lines.length > 0) {
+            const last = JSON.parse(lines[lines.length - 1]);
+            const target = last.message || last.click;
+            if (target && target.startsWith('http')) return target;
+          }
+        }
+      } catch (e) {}
+
+      return null;
+    }
 
     async function resolveAndRedirect() {
       try {
-        const response = await fetch(TOPIC_URL);
-        if (!response.ok) throw new Error("无法读取同步状态");
-        const text = await response.text();
-        const lines = text.trim().split("\n").filter(l => l.trim().length > 0);
-        if (lines.length === 0) throw new Error("尚未获取到在线地址");
-
-        const latest = JSON.parse(lines[lines.length - 1]);
-        const targetUrl = latest.message || latest.click;
-
-        if (targetUrl && (targetUrl.startsWith("http://") || targetUrl.startsWith("https://"))) {
-          document.getElementById("desc").innerText = "已就绪，正在无感跳转...";
-          document.getElementById("target-link").href = targetUrl;
-          document.getElementById("action-area").style.display = "block";
-          
-          // 0.3秒平滑跳转
+        const targetUrl = await getTargetUrl();
+        if (targetUrl) {
+          document.getElementById('desc').innerText = '已就绪，正在无感跳转...';
+          document.getElementById('target-link').href = targetUrl;
+          document.getElementById('action-area').style.display = 'block';
           setTimeout(() => {
             window.location.replace(targetUrl);
-          }, 300);
+          }, 350);
         } else {
-          showOffline("暂无有效在线地址，请检查电脑端 MyRouter 是否已启动。");
+          showOffline('暂无有效在线地址，请检查电脑端 MyRouter 是否已启动。');
         }
       } catch (err) {
-        showOffline("未能连接到在线中枢 (" + err.message + ")。请确保电脑端 MyRouter 处于运行状态。");
+        showOffline('连接中转站失败: ' + err.message);
       }
     }
 
     function showOffline(msg) {
-      document.getElementById("loader").style.display = "none";
-      document.getElementById("desc").innerText = "连接失败";
-      document.getElementById("action-area").style.display = "block";
-      document.getElementById("target-link").innerText = "重新尝试连接";
-      document.getElementById("target-link").onclick = (e) => {
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('desc').innerText = '未能获取在线实例';
+      document.getElementById('action-area').style.display = 'block';
+      document.getElementById('target-link').innerText = '刷新重试';
+      document.getElementById('target-link').onclick = (e) => {
         e.preventDefault();
         location.reload();
       };
-      document.getElementById("offline-tip").innerText = msg;
+      document.getElementById('offline-tip').innerText = msg;
     }
 
     resolveAndRedirect();
